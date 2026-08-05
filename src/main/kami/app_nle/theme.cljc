@@ -1,6 +1,7 @@
 (ns kami.app-nle.theme
-  "KAMI NLE's theme and its stylesheet, on the kotoba-lang design system
-  (skill `kotoba-uiux`, ADR-2607122200).
+  "KAMI NLE's stylesheet, on **jp-go-dds** — the デジタル庁デザインシステム
+  (DADS) mirror, which is this workspace's base design system
+  (owner decision 2026-08-05).
 
   ── what this replaces ──────────────────────────────────────────────────────
   The app shipped two stylesheets of its own:
@@ -23,20 +24,14 @@
   track-name column, the frame grid, tick-positioned clips with trim handles,
   a 16:9 monitor. Those rules stay — with token colors and type, so they flip
   with the appearance like everything else."
-  (:require [kotoba-ui.core :as ui]))
+  (:require [jp-go-dds.core :as dds]
+            [jp-go-dds.tokens :as dds-tokens]))
 
-(def theme
-  "`#38bdf8` is the sky blue the app already used for its focus ring, its
-  eyebrow label, its primary button and its selected-clip ring — four
-  hardcoded copies of one intention, now a single accent everything derives
-  from.
-
-  `:appearance :dark`: a video editor grades against a dark surround, and
-  this one always did. The difference is that it used to be asserted as
-  `color-scheme: dark` over a hand-picked palette; now it is one key over the
-  contrast-checked HIG set."
-  {:accent "#38bdf8"
-   :appearance :dark})
+;; The theme map is gone. liquid-glass took one accent and derived a palette;
+;; DADS ships its own (デジタル庁ブルー, `--color-key-900`) and an app does not
+;; choose it. `#38bdf8` — the sky blue this app used for its focus ring,
+;; eyebrow, primary button and selected-clip ring — is no longer part of the
+;; design, which is what adopting a base design system means.
 
 (def track-palette
   "Clip colors from the HIG system palette rather than invented per track.
@@ -71,11 +66,14 @@
    ".nle-footer{margin-top:auto;padding:var(--hig-spacing-4) var(--hig-spacing-content-margin);"
    "color:var(--hig-color-secondary-label)}\n"
    ".nle-eyebrow{color:var(--hig-color-tint);letter-spacing:.14em}\n"
+   ".nle-toolbar{display:flex;align-items:center;flex-wrap:wrap;"
+   "gap:var(--hig-spacing-2);padding:var(--hig-spacing-2) var(--hig-spacing-content-margin);"
+   "border-bottom:1px solid var(--hig-color-separator);"
+   "background:var(--hig-color-secondary-system-background)}\n"
    ".nle-toolbar h1{margin:0;font-size:var(--hig-text-title3-font-size)}\n"
-   ;; The transport's primary action: filled with the theme's own accent
-   ;; rather than a second value invented for it.
-   ".nle-primary{background:var(--hig-color-tint);color:var(--hig-color-system-background);"
-   "font-weight:700}\n"
+   ".nle-spacer{flex:1 1 auto}\n"
+   ;; No `.nle-primary`: DADS states "this is the button you press" with the
+   ;; button's own :type (:solid-fill), so the app stops painting it.
    ".nle-timecode{font-family:var(--hig-font-mono);letter-spacing:.08em;"
    "margin-left:var(--hig-spacing-3)}\n"
    ".nle-row{display:flex;align-items:center;gap:var(--hig-spacing-3);flex-wrap:wrap}\n"
@@ -151,11 +149,18 @@
    ".nle-frame{width:92vw}"
    "}\n"))
 
+(def app-css*
+  "Everything the app contributes to a DADS page's `:app-css` slot: the
+  `--hig-*` bridge, then the app's own rules. The bridge first so the app can
+  still override a token, the app last so its rules win. `jp-go-dds.page`
+  emits `dds/ext-css` itself between the vendored bundle and this."
+  (str dds-tokens/bridge-css "\n" app-css))
+
 (defn stylesheet
-  "The complete CSS for the NLE page: the design system's bundle for `theme`
-  followed by the app's own unlayered rules."
-  ([] (stylesheet theme))
-  ([t] (str (ui/theme-css t) "\n" app-css)))
+  "The complete CSS for a host that is not going through `jp-go-dds.page`.
+  `dds-css` is the vendored DADS stylesheet, read by the caller."
+  [dds-css]
+  (str dds-css "\n" dds/ext-css "\n" app-css*))
 
 (defn hex-free?
   "True when `s` contains no raw hex color."
