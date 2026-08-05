@@ -2,14 +2,16 @@
   (:require [reagent.core :as r] [reagent.dom.client :as rdom] [cljs.reader :as reader] [clojure.string :as str]
             [kami.app-nle.core :as nle] [kami.app-nle.bench :as bench]
             [html.core :as html]
+            [kotoba-ui.core :as ui]
+            [kami.app-nle.theme :as theme]
             [kami.app-nle.asset-sources :as asset-sources]
             [kami.app-nle.cache :as cache]
             ["fflate" :refer [zipSync unzipSync strToU8 strFromU8]]))
 
 (def sample (nle/project {:project/id "demo-cut" :project/name "海辺の予告編" :project/fps 30
- :project/tracks [{:track/id "v2" :track/name "V2 • Titles" :track/type :video :track/clips [{:clip/id "title" :clip/name "OPENING" :clip/start-frame 45 :clip/in-frame 0 :clip/out-frame 75 :clip/color "#fbbf24"}]}
- {:track/id "v1" :track/name "V1 • Picture" :track/type :video :track/clips [{:clip/id "wide" :clip/name "Wide shot" :clip/source-id "asset:0" :clip/start-frame 0 :clip/in-frame 20 :clip/out-frame 170 :clip/color "#38bdf8"} {:clip/id "close" :clip/name "Close up" :clip/source-id "asset:1" :clip/start-frame 150 :clip/in-frame 10 :clip/out-frame 130 :clip/color "#a78bfa"}]}
- {:track/id "a1" :track/name "A1 • Dialogue" :track/type :audio :track/clips [{:clip/id "dialogue" :clip/name "Dialogue.wav" :clip/start-frame 30 :clip/in-frame 0 :clip/out-frame 240 :clip/color "#34d399"}]}]}))
+ :project/tracks [{:track/id "v2" :track/name "V2 • Titles" :track/type :video :track/clips [{:clip/id "title" :clip/name "OPENING" :clip/start-frame 45 :clip/in-frame 0 :clip/out-frame 75 :clip/color (theme/track-color 0)}]}
+ {:track/id "v1" :track/name "V1 • Picture" :track/type :video :track/clips [{:clip/id "wide" :clip/name "Wide shot" :clip/source-id "asset:0" :clip/start-frame 0 :clip/in-frame 20 :clip/out-frame 170 :clip/color (theme/track-color 3)} {:clip/id "close" :clip/name "Close up" :clip/source-id "asset:1" :clip/start-frame 150 :clip/in-frame 10 :clip/out-frame 130 :clip/color (theme/track-color 2)}]}
+ {:track/id "a1" :track/name "A1 • Dialogue" :track/type :audio :track/clips [{:clip/id "dialogue" :clip/name "Dialogue.wav" :clip/start-frame 30 :clip/in-frame 0 :clip/out-frame 240 :clip/color (theme/track-color 1)}]}]}))
 (def kotoba-html-contract
   (html/html [:meta {:name "kotoba:app-shell" :content "kami-nle single-screen liquid-glass"}]
              [:noscript "KAMI NLE requires JavaScript for media decode and rendering."]))
@@ -20,11 +22,11 @@
    [:select {:value (:actor-id run) :on-change #(do (swap! bench-run assoc :actor-id (.. % -target -value) :task-index 0) (bench/persist! @bench-run))}
     (for [{:keys [id label kind]} bench/actors] ^{:key id} [:option {:value id} (str label " • " (name kind))])]
    [:p (str "Task " (inc (:task-index run)) "/" (count (:tasks actor)) ": " (bench/current-task run))]
-   [:button {:on-click #(bench/record! bench-run :observation {:note "manual observation"})} "Log observation"]
-   [:button {:on-click #(bench/complete-task! bench-run true 0)} "Pass / next task"]
-   [:button {:on-click #(bench/complete-task! bench-run false 1)} "Fail / next task"]
+   (ui/button "Log observation" {:attrs {:on-click #(bench/record! bench-run :observation {:note "manual observation"})}})
+   (ui/button "Pass / next task" {:attrs {:on-click #(bench/complete-task! bench-run true 0)}})
+   (ui/button "Fail / next task" {:attrs {:on-click #(bench/complete-task! bench-run false 1)}})
    [:textarea {:placeholder "Participant feedback" :aria-label "Participant feedback" :on-blur #(bench/feedback! bench-run (.. % -target -value) :friction 0)}]
-   [:button {:on-click #(bench/export! @bench-run)} "Export EDN"]
+   (ui/button "Export EDN" {:attrs {:on-click #(bench/export! @bench-run)}})
    [:small (str "events=" (count (:events run)) " • session=" (:session-id run))]]))
 (declare load-media!)
 (defn load-network-sources! []
@@ -1093,19 +1095,19 @@
     (.preventDefault event) (.stopPropagation event)
     (swap! state update :project nle/trim-edge (:clip/id clip) edge delta)))
 (defn clip-view [c total]
-  [:div.clip {:class (when (= (:selected @state) (:clip/id c)) "selected")
+  [:div.nle-clip {:class (when (= (:selected @state) (:clip/id c)) "selected")
               :role "button" :tab-index 0 :aria-label (str "Select clip " (:clip/name c))
               :style {:left (str (* 100 (/ (:clip/start-frame c) total)) "%")
                       :width (str (* 100 (/ (- (:clip/out-frame c) (:clip/in-frame c)) total)) "%")
                       :background (:clip/color c)}
               :on-click #(swap! state assoc :selected (:clip/id c) :frame (:clip/start-frame c))
               :on-key-down #(when (#{"Enter" " "} (.-key %)) (swap! state assoc :selected (:clip/id c) :frame (:clip/start-frame c)))}
-   [:span.trim-handle.left {:role "slider" :tab-index 0 :aria-label (str "Trim in " (:clip/name c))
+   [:span.nle-trim.left {:role "slider" :tab-index 0 :aria-label (str "Trim in " (:clip/name c))
                             :aria-valuemin 0 :aria-valuemax (dec (:clip/out-frame c)) :aria-valuenow (:clip/in-frame c)
                             :on-key-down #(key-trim! % c :in)
                             :on-pointer-down #(start-trim! % c :in total)}]
-   [:span.clip-name (:clip/name c)]
-   [:span.trim-handle.right {:role "slider" :tab-index 0 :aria-label (str "Trim out " (:clip/name c))
+   [:span.nle-clip-name (:clip/name c)]
+   [:span.nle-trim.right {:role "slider" :tab-index 0 :aria-label (str "Trim out " (:clip/name c))
                              :aria-valuemin (inc (:clip/in-frame c)) :aria-valuemax 999999 :aria-valuenow (:clip/out-frame c)
                              :on-key-down #(key-trim! % c :out)
                              :on-pointer-down #(start-trim! % c :out total)}]])
@@ -1155,26 +1157,24 @@
                     delivery (nle/delivery-audio project)
                     color (nle/color-pipeline project)
                     missing (nle/missing-asset-ids project (keys assets))]
- [:main [:header.liquid-glass__toolbar [:div [:small "KOTOBA-LANG / VIDEO"] [:h1 "KAMI NLE"]] [:div.transport [:button.primary {:on-click toggle-play! :disabled (not decoded?)} (if playing? "❚❚ Pause" "▶ Play decoded media")] [:output (nle/timecode frame fps)]]]
-  [:section.meta [:button {:aria-label "Load network asset sources" :on-click load-network-sources!} "Load network assets"]
+ [:main.nle-main [:header.liquid-glass__toolbar [:div [:small.nle-eyebrow "KOTOBA-LANG / VIDEO"] [:h1 "KAMI NLE"]] [:div.nle-row (ui/button (if playing? "❚❚ Pause" "▶ Play decoded media") {:class "nle-primary" :attrs {:on-click toggle-play! :disabled (not decoded?)}}) [:output.nle-timecode (nle/timecode frame fps)]]]
+  [:section.nle-meta (ui/button "Load network assets" {:attrs {:aria-label "Load network asset sources" :on-click load-network-sources!}})
    [:output {:aria-label "Network asset source status"} (:network-source-status @state)]
    (for [source (:network-sources @state) item (take 4 (:source/items source))]
      ^{:key (str (:source/id source) (:asset/id item))}
-     [:button {:aria-label (str "Import remote asset " (:asset/name item)) :on-click #(import-remote-video! item)}
-      (str "Import " (:asset/name item))])]
-  [:section.workspace [:aside [:h2 "Project bin"] [:label.import "Import / relink V1 videos" [:input {:type "file" :accept "video/*" :multiple true :aria-label "Import or relink NLE videos" :on-change load-media!}]]
-    [:label.import "Import independent audio lanes" [:input {:type "file" :accept "audio/*" :multiple true
+     (ui/button (str "Import " (:asset/name item)) {:attrs {:aria-label (str "Import remote asset " (:asset/name item)) :on-click #(import-remote-video! item)}}))]
+  [:section.nle-workspace [:aside.nle-bin [:h2 "Project bin"] [:label.nle-field "Import / relink V1 videos" [:input {:type "file" :accept "video/*" :multiple true :aria-label "Import or relink NLE videos" :on-change load-media!}]]
+    [:label.nle-field "Import independent audio lanes" [:input {:type "file" :accept "audio/*" :multiple true
                                                                :aria-label "Import NLE audio lanes" :on-change load-audio!}]]
-    [:label.import "Search video directory" [:input {:type "file" :accept "video/*" :multiple true :webkitdirectory ""
+    [:label.nle-field "Search video directory" [:input {:type "file" :accept "video/*" :multiple true :webkitdirectory ""
                                                        :aria-label "Search NLE video directory" :on-change scan-video-directory!}]]
     (if (seq assets)
       (for [[id asset] assets] ^{:key id}
-        [:div.asset [:span (str "🎞 " id " • " (:name asset)
+        [:div.nle-asset [:span (str "🎞 " id " • " (:name asset)
                                 (when (:proxy-url asset) (str " • proxy " (js/Math.round (/ (:proxy-size asset) 1024)) " KiB")))]
-         [:button {:aria-label (str "Generate proxy for " id) :disabled (= id (:proxy-generating @state))
-                   :on-click #(generate-proxy! id)}
-          (if (= id (:proxy-generating @state)) "Generating…" (if (:proxy-url asset) "Regenerate proxy" "Generate proxy"))]])
-      [:div.asset "No media loaded"])
+         (ui/button (if (= id (:proxy-generating @state)) "Generating…" (if (:proxy-url asset) "Regenerate proxy" "Generate proxy")) {:attrs {:aria-label (str "Generate proxy for " id) :disabled (= id (:proxy-generating @state))
+                   :on-click #(generate-proxy! id)}})])
+      [:div.nle-asset "No media loaded"])
     [:label "Use proxies for preview" [:input {:type "checkbox" :checked (:proxy-preview? @state)
                                                  :aria-label "Use proxies for preview"
                                                  :on-change #(toggle-proxy-preview! (.. % -target -checked))}]]
@@ -1213,29 +1213,27 @@
     [:label "Review actor" [:input {:value (:review-author @state) :aria-label "Caption review actor"
                                       :on-change #(swap! state assoc :review-author (.. % -target -value))}]]
     (let [notifications (nle/unread-review-notifications-for project (:review-author @state))]
-      [:div.asset {:aria-label "Unread review notifications"}
+      [:div.nle-asset {:aria-label "Unread review notifications"}
        [:strong (str "Unread review notifications: " (count notifications))]
        (for [notification notifications]
          ^{:key (:notification/id notification)}
          [:span
           [:small (str (name (:notification/kind notification)) " from " (:notification/actor notification)
                        " on " (:notification/caption-id notification))]
-          [:button {:aria-label (str "Mark notification read " (:notification/id notification))
+          (ui/button "Mark read" {:attrs {:aria-label (str "Mark notification read " (:notification/id notification))
                     :on-click #(swap! state update :project nle/mark-review-notification-read
-                                      (:notification/id notification) (:review-author @state) (js/Date.now))}
-           "Mark read"]])])
-    [:label.import "Import WebVTT for language"
+                                      (:notification/id notification) (:review-author @state) (js/Date.now))}})])])
+    [:label.nle-field "Import WebVTT for language"
      [:input {:type "file" :accept ".vtt,text/vtt" :aria-label "Import WebVTT"
               :on-change import-webvtt!}]]
-    [:label.import "Import IMSC 1.2 captions"
+    [:label.nle-field "Import IMSC 1.2 captions"
      [:input {:type "file" :accept ".xml,.ttml,application/ttml+xml" :aria-label "Import IMSC1/TTML"
               :on-change import-imsc1!}]]
-    [:button {:on-click #(swap! state update :project nle/clone-caption-language
+    (ui/button "Clone active captions to new language" {:attrs {:on-click #(swap! state update :project nle/clone-caption-language
                                 (nle/normalize-language (:project/caption-language project))
                                 (:caption-language @state))
               :disabled (= (nle/normalize-language (:project/caption-language project))
-                           (nle/normalize-language (:caption-language @state)))}
-     "Clone active captions to new language"]
+                           (nle/normalize-language (:caption-language @state)))}})
     [:label "Burn-in / export language"
      [:select {:value (nle/normalize-language (:project/caption-language project))
                :aria-label "Active caption language"
@@ -1254,9 +1252,9 @@
                                             :value (:caption-font-scale @state) :aria-label "New caption font scale"
                                             :on-change #(swap! state assoc :caption-font-scale
                                                                (js/parseFloat (.. % -target -value)))}]]
-    [:button {:on-click add-caption-at-playhead! :disabled (empty? (:caption-text @state))} "Add caption at playhead"]
+    (ui/button "Add caption at playhead" {:attrs {:on-click add-caption-at-playhead! :disabled (empty? (:caption-text @state))}})
     (for [caption (:project/captions project)]
-      ^{:key (:caption/id caption)} [:div.asset
+      ^{:key (:caption/id caption)} [:div.nle-asset
        [:input {:value (:caption/text caption) :aria-label (str (:caption/id caption) " text")
                 :on-change #(swap! state update :project nle/update-caption (:caption/id caption)
                                    {:caption/text (.. % -target -value)})}]
@@ -1312,13 +1310,13 @@
                    :aria-label (str (:caption/id caption) " review note")
                    :on-change #(swap! state assoc-in [:caption-review-drafts (:caption/id caption)]
                                       (.. % -target -value))}]
-       [:button {:aria-label (str "Add review note to " (:caption/id caption))
+       (ui/button "Add review note" {:attrs {:aria-label (str "Add review note to " (:caption/id caption))
                  :disabled (str/blank? (get-in @state [:caption-review-drafts (:caption/id caption)] ""))
                  :on-click #(let [now (js/Date.now)]
                               (swap! state update :project nle/start-caption-review-thread (:caption/id caption)
                                      (str "review:" now) (:review-author @state)
                                      (get-in @state [:caption-review-drafts (:caption/id caption)]) now)
-                              (swap! state assoc-in [:caption-review-drafts (:caption/id caption)] ""))} "Add review note"]
+                              (swap! state assoc-in [:caption-review-drafts (:caption/id caption)] ""))}})
        (for [note (:caption/review-notes caption)]
          ^{:key (:review/id note)}
          [:div
@@ -1327,17 +1325,16 @@
                          (if (:review/resolved? note) " [resolved]" " [open]")))]
           (when (and (:review/thread-id note) (nil? (:review/parent-id note)))
             [:span
-             [:button {:aria-label (str (if (:review/resolved? note) "Reopen " "Resolve ") (:review/id note))
+             (ui/button (if (:review/resolved? note) "Reopen" "Resolve") {:attrs {:aria-label (str (if (:review/resolved? note) "Reopen " "Resolve ") (:review/id note))
                        :on-click #(swap! state update :project nle/set-caption-review-thread-resolution
                                          (:caption/id caption) (:review/thread-id note)
-                                         (not (:review/resolved? note)) (:review-author @state) (js/Date.now))}
-              (if (:review/resolved? note) "Reopen" "Resolve")]
+                                         (not (:review/resolved? note)) (:review-author @state) (js/Date.now))}})
              [:input {:value (get-in @state [:caption-reply-drafts (:review/id note)] "")
                       :disabled (:review/resolved? note)
                       :placeholder "Reply" :aria-label (str (:review/id note) " reply")
                       :on-change #(swap! state assoc-in [:caption-reply-drafts (:review/id note)]
                                          (.. % -target -value))}]
-             [:button {:aria-label (str "Reply to " (:review/id note))
+             (ui/button "Reply" {:attrs {:aria-label (str "Reply to " (:review/id note))
                        :disabled (or (:review/resolved? note)
                                      (str/blank? (get-in @state [:caption-reply-drafts (:review/id note)] "")))
                        :on-click #(let [now (js/Date.now)]
@@ -1345,8 +1342,7 @@
                                            (:caption/id caption) (:review/thread-id note) (str "reply:" now)
                                            (:review-author @state)
                                            (get-in @state [:caption-reply-drafts (:review/id note)]) now)
-                                    (swap! state assoc-in [:caption-reply-drafts (:review/id note)] ""))}
-              "Reply"]])])
+                                    (swap! state assoc-in [:caption-reply-drafts (:review/id note)] ""))}})])])
        (when-let [entry (last (:caption/status-history caption))]
          [:small (str "Status " (name (:status/from entry)) " → " (name (:status/to entry))
                       " by " (:status/actor entry))])
@@ -1370,12 +1366,12 @@
                                     {:caption/style (assoc (nle/normalize-caption-style (:caption/style caption))
                                                            :caption/align (keyword (.. % -target -value)))})}
         [:option {:value "left"} "Left"] [:option {:value "center"} "Center"] [:option {:value "right"} "Right"]]
-       [:button {:aria-label (str "Delete " (:caption/id caption))
-                 :on-click #(swap! state update :project nle/remove-caption (:caption/id caption))} "Delete"]])
-    [:button {:on-click export-webvtt! :disabled (empty? (:project/captions project))} "Export WebVTT"]
-    [:button {:on-click export-imsc1! :disabled (empty? (:project/captions project))} "Export IMSC1/TTML"]
+       (ui/button "Delete" {:attrs {:aria-label (str "Delete " (:caption/id caption))
+                 :on-click #(swap! state update :project nle/remove-caption (:caption/id caption))}})])
+    (ui/button "Export WebVTT" {:attrs {:on-click export-webvtt! :disabled (empty? (:project/captions project))}})
+    (ui/button "Export IMSC1/TTML" {:attrs {:on-click export-imsc1! :disabled (empty? (:project/captions project))}})
     (when-let [clip (selected-clip project selected)]
-      [:div.asset [:strong (str "Edit • " (:clip/name clip))]
+      [:div.nle-asset [:strong (str "Edit • " (:clip/name clip))]
        [:label "Source in" [:input {:type "number" :min 0 :value (:clip/in-frame clip) :on-change #(edit-trim! clip :in (js/parseInt (.. % -target -value)))}]]
        [:label "Source out" [:input {:type "number" :min 1 :value (:clip/out-frame clip) :on-change #(edit-trim! clip :out (js/parseInt (.. % -target -value)))}]]
        [:label "Clip audio" [:input {:type "range" :min 0 :max 2 :step 0.05 :value (or (:clip/audio-gain clip) 1)
@@ -1408,11 +1404,11 @@
                                                             (when (= (:clip/id clip) (:clip/id (nle/clip-at-frame (:project @state) (:frame @state))))
                                                               (set-video-eq! (primary-video) (:clip/audio-eq (selected-clip (:project @state) (:clip/id clip))))))}]])
        [:label "Transition" [:select {:value (name (or (get-in clip [:clip/transition-out :transition/type]) :cut)) :on-change #(swap! state update :project nle/set-transition (:clip/id clip) (keyword (.. % -target -value)) 12)} [:option {:value "cut"} "Cut"] [:option {:value "fade"} "Fade to black"] [:option {:value "dissolve"} "Cross dissolve"]]]
-       [:div.tools [:button {:on-click #(swap! state update :project nle/ripple-trim-out (:clip/id clip) (+ 5 (:clip/out-frame clip)))} "Ripple +5"]
-        [:button {:on-click #(swap! state update :project nle/slip-clip (:clip/id clip) -5)} "Slip −5"]
-        [:button {:on-click #(swap! state update :project nle/slip-clip (:clip/id clip) 5)} "Slip +5"]
+       [:div.nle-row (ui/button "Ripple +5" {:attrs {:on-click #(swap! state update :project nle/ripple-trim-out (:clip/id clip) (+ 5 (:clip/out-frame clip)))}})
+        (ui/button "Slip −5" {:attrs {:on-click #(swap! state update :project nle/slip-clip (:clip/id clip) -5)}})
+        (ui/button "Slip +5" {:attrs {:on-click #(swap! state update :project nle/slip-clip (:clip/id clip) 5)}})
         (when-let [right (next-video-clip project (:clip/id clip))]
-          [:button {:on-click #(swap! state update :project nle/roll-cut (:clip/id clip) (:clip/id right) 5)} "Roll +5"])]] )
+          (ui/button "Roll +5" {:attrs {:on-click #(swap! state update :project nle/roll-cut (:clip/id clip) (:clip/id right) 5)}}))]] )
     [:label "Master audio" [:input {:type "range" :min 0 :max 1.5 :step 0.05 :value (or (:project/master-gain project) 0.9) :aria-label "Master audio gain"
                                      :on-change #(set-master-gain! (js/parseFloat (.. % -target -value)))}]]
     (for [[band label] [[:low-db "Master low EQ"] [:mid-db "Master mid EQ"] [:high-db "Master high EQ"]]]
@@ -1444,43 +1440,41 @@
                                              :on-change #(swap! state update :project nle/set-delivery-audio :delivery/sample-peak-ceiling-db
                                                                 (js/parseFloat (.. % -target -value)))}]]
     [:meter {:min -60 :max 0 :value (max -60 (:audio-meter-db @state)) :title (str (.toFixed (:audio-meter-db @state) 1) " dBFS")}]
-    [:button {:on-click analyze-delivery! :disabled (or (not decoded?) exporting? (:analyzing-delivery? @state))}
-     (if (:analyzing-delivery? @state) "Analyzing delivery…" "Analyze delivery")]
+    (ui/button (if (:analyzing-delivery? @state) "Analyzing delivery…" "Analyze delivery") {:attrs {:on-click analyze-delivery! :disabled (or (not decoded?) exporting? (:analyzing-delivery? @state))}})
     (when-let [report (:delivery-report @state)]
       [:output {:aria-label "Delivery loudness report"}
        (str (.toFixed (:loudness/lufs report) 1) " LUFS • "
             (.toFixed (:sample-peak/dbfs report) 1) " dBFS • gain "
             (.toFixed (:normalization/gain-db report) 1) " dB")])
-    [:button {:on-click export-production! :disabled (or (not decoded?) exporting? (:analyzing-delivery? @state)
-                                                         (nil? (resolved-recorder-profile project)))}
-     (cond exporting? "Encoding production…" (:analyzing-delivery? @state) "Preflighting audio…"
-           :else (str "Export " (some-> (resolved-recorder-profile project) :profile/container name .toUpperCase)))]
-    [:button {:on-click download-project!} "Save project EDN"]
+    (ui/button (cond exporting? "Encoding production…" (:analyzing-delivery? @state) "Preflighting audio…"
+           :else (str "Export " (some-> (resolved-recorder-profile project) :profile/container name .toUpperCase))) {:attrs {:on-click export-production! :disabled (or (not decoded?) exporting? (:analyzing-delivery? @state)
+                                                         (nil? (resolved-recorder-profile project)))}})
+    (ui/button "Save project EDN" {:attrs {:on-click download-project!}})
     [:label "Open project EDN" [:input {:type "file" :accept ".edn,application/edn" :aria-label "Open NLE project EDN" :on-change load-project!}]]
-    [:button {:on-click export-package!} "Package project + media"]
+    (ui/button "Package project + media" {:attrs {:on-click export-package!}})
     [:label "Open media package" [:input {:type "file" :accept ".zip,.kami.zip,application/zip" :aria-label "Open NLE media package" :on-change open-package!}]]
-    [:button {:on-click clear-media-cache! :aria-label "Clear persistent media cache"} "Clear media cache"]
-    [:button {:on-click undo! :disabled (empty? (get-in @state [:history :history/past])) :aria-label "Undo project edit"} "↶ Undo"]
-    [:button {:on-click redo! :disabled (empty? (get-in @state [:history :history/future])) :aria-label "Redo project edit"} "↷ Redo"]
-    [:button {:on-click #(js/navigator.clipboard.writeText (pr-str project))} "Copy project EDN"]]
-   (when-let [error (:project-error @state)] [:aside [:strong (str "Project error: " error)]])
-   (when (:directory-searching? @state) [:aside [:strong "Searching video directory…"]])
-   (when-let [source-id (:proxy-generating @state)] [:aside [:strong (str "Generating preview proxy for " source-id "…")]])
-   (when-let [error (:proxy-error @state)] [:aside [:strong (str "Proxy error: " error)]])
+    (ui/button "Clear media cache" {:attrs {:on-click clear-media-cache! :aria-label "Clear persistent media cache"}})
+    (ui/button "↶ Undo" {:attrs {:on-click undo! :disabled (empty? (get-in @state [:history :history/past])) :aria-label "Undo project edit"}})
+    (ui/button "↷ Redo" {:attrs {:on-click redo! :disabled (empty? (get-in @state [:history :history/future])) :aria-label "Redo project edit"}})
+    (ui/button "Copy project EDN" {:attrs {:on-click #(js/navigator.clipboard.writeText (pr-str project))}})]
+   (when-let [error (:project-error @state)] [:aside.nle-meta [:strong (str "Project error: " error)]])
+   (when (:directory-searching? @state) [:aside.nle-meta [:strong "Searching video directory…"]])
+   (when-let [source-id (:proxy-generating @state)] [:aside.nle-meta [:strong (str "Generating preview proxy for " source-id "…")]])
+   (when-let [error (:proxy-error @state)] [:aside.nle-meta [:strong (str "Proxy error: " error)]])
    (when-let [{:keys [matched missing ignored]} (:directory-result @state)]
-     [:aside [:strong (str "Directory relink: " matched " matched • " (count missing) " missing • " ignored " ignored")]])
-   (when (:recovered? @state) [:aside [:strong "Recovered autosaved project"]])
-   (when (:cache-restoring? @state) [:aside [:strong "Restoring verified media cache…"]])
+     [:aside.nle-meta [:strong (str "Directory relink: " matched " matched • " (count missing) " missing • " ignored " ignored")]])
+   (when (:recovered? @state) [:aside.nle-meta [:strong "Recovered autosaved project"]])
+   (when (:cache-restoring? @state) [:aside.nle-meta [:strong "Restoring verified media cache…"]])
    (when (pos? (:cache-restored-count @state))
-     [:aside [:strong (str "Restored " (:cache-restored-count @state) " verified cached media")]])
+     [:aside.nle-meta [:strong (str "Restored " (:cache-restored-count @state) " verified cached media")]])
    (when (seq missing) [:aside.missing-media [:strong (str "Missing media: " (count missing))] [:span (pr-str missing)]])
-   [:div.monitor [:video {:ref #(reset! video-a-node %) :style {:display "none"} :plays-inline true :on-loaded-metadata media-ready! :on-pause #(swap! state assoc :playing? false)}]
+   [:div.nle-monitor [:video {:ref #(reset! video-a-node %) :style {:display "none"} :plays-inline true :on-loaded-metadata media-ready! :on-pause #(swap! state assoc :playing? false)}]
     [:video {:ref #(reset! video-b-node %) :style {:display "none"} :plays-inline true}]
-    [:div.frame [:span "PROGRAM"] [:strong (nle/timecode frame fps)] ^{:key (name (:color/output-space color))}
+    [:div.nle-frame [:span "PROGRAM"] [:strong (nle/timecode frame fps)] ^{:key (name (:color/output-space color))}
      [:canvas {:ref set-canvas-node! :aria-label "Decoded video preview"}]
-     (when-not decoded? [:div.scene "IMPORT VIDEO"])] [:div.tools [:button {:disabled (nil? selected) :on-click #(swap! state update :project nle/split-clip selected frame (str selected "-b"))} "Split at playhead"] [:span (str fps " fps • " total " frames • " (name effect) " • " (name (:color/output-space color)))]]]]
-  [:section.timeline [:input.scrub {:type "range" :min 0 :max total :value frame :aria-label "Playhead" :on-change #(let [f (js/parseInt (.. % -target -value))] (swap! state assoc :frame f) (seek-frame! f))}] (for [track (:project/tracks project)] ^{:key (:track/id track)} [:div.track [:div.track-name (:track/name track)] [:div.lane (for [c (:track/clips track)] ^{:key (:clip/id c)} [clip-view c total])]])]
-  [:footer (if-let [e (seq (nle/validate-project project))] (str "Errors: " e) "HTMLVideo decode • graded canvas • capability-negotiated MediaRecorder export")]]))
+     (when-not decoded? [:div.nle-scene "IMPORT VIDEO"])] [:div.nle-row (ui/button "Split at playhead" {:attrs {:disabled (nil? selected) :on-click #(swap! state update :project nle/split-clip selected frame (str selected "-b"))}}) [:span (str fps " fps • " total " frames • " (name effect) " • " (name (:color/output-space color)))]]]]
+  [:section.nle-timeline [:input.nle-scrub {:type "range" :min 0 :max total :value frame :aria-label "Playhead" :on-change #(let [f (js/parseInt (.. % -target -value))] (swap! state assoc :frame f) (seek-frame! f))}] (for [track (:project/tracks project)] ^{:key (:track/id track)} [:div.nle-track [:div.nle-track-name (:track/name track)] [:div.nle-lane (for [c (:track/clips track)] ^{:key (:clip/id c)} [clip-view c total])]])]
+  [:footer.nle-footer (if-let [e (seq (nle/validate-project project))] (str "Errors: " e) "HTMLVideo decode • graded canvas • capability-negotiated MediaRecorder export")]]))
 (defonce root-node (atom nil))
 (defn init! []
   (.insertAdjacentHTML (.-head js/document) "beforeend" kotoba-html-contract)
