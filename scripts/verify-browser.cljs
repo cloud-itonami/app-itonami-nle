@@ -14,7 +14,7 @@
             ["playwright-core$default" :as pw]
             [promesa.core :as p]))
 
-(def url (or (.. process -env -NLE_URL) "http://localhost:8733/"))
+(def url (or (.. process -env -NLE_URL) "http://localhost:8736/"))
 
 (defonce results (atom []))
 
@@ -28,17 +28,17 @@
   [(fn [] (p/let [t (.textContent (.locator page "h1"))]
             (check! "app mounted" (= "KAMI NLE" (str t)) t)))
 
-   (fn [] (p/let [raw (.count (.locator page "button:not(.shitsuke__button)"))
-                  glass (.count (.locator page "button.liquid-glass__button"))]
-            (check! "buttons are ui/button, not hand-rolled"
-                    (and (zero? raw) (> glass 15)) (str "raw=" raw " glass=" glass))))
+   (fn [] (p/let [dads (.count (.locator page "button.dads-button"))
+                  other (.count (.locator page "button:not(.dads-button)"))]
+            (check! "every button is a DADS button"
+                    (and (> dads 15) (zero? other)) (str "dads=" dads " other=" other))))
 
    ;; `:disabled (not decoded?)` travels through :attrs. Before shitsuke's
    ;; merge became nil-aware, the component's own `:disabled nil` beat the
    ;; consumer's value — this button would have been clickable with no media
    ;; decoded. Exactly the regression the mechanical transform would have
    ;; introduced, silently, across 66 buttons in the two apps.
-   (fn [] (p/let [dis (.isDisabled (.locator page ".nle-primary"))]
+   (fn [] (p/let [dis (.isDisabled (.first (.locator page "button[data-type='solid-fill']")))]
             (check! "ui/button :attrs {:disabled …} actually disables"
                     dis (str "disabled=" dis))))
 
@@ -80,14 +80,15 @@
                     (and (seq (str bg)) (not= "rgba(0, 0, 0, 0)" (str bg))) bg)))
 
    (fn [] (p/let [tint (.evaluate page "getComputedStyle(document.documentElement).getPropertyValue('--hig-color-tint').trim()")
-                  app (.getAttribute (.locator page "html") "data-appearance")]
-            (check! "theme accent + appearance are live"
-                    (and (= "#38bdf8" (str tint)) (= "dark" (str app)))
-                    (str tint " / " app))))
+                  key (.evaluate page "getComputedStyle(document.documentElement).getPropertyValue('--color-key-900').trim()")
+                  gap (.evaluate page "getComputedStyle(document.querySelector('.nle-toolbar')).gap")]
+            (check! "the --hig-* contract resolves onto DADS primitives"
+                    (and (= (str tint) (str key)) (seq (str key)) (re-find #"^\d" (str gap)))
+                    (str "tint=" tint " key=" key " gap=" gap))))
 
    (fn [] (p/let [label (.evaluate page "getComputedStyle(document.documentElement).getPropertyValue('--hig-color-label').trim()")
                   mono (.evaluate page "getComputedStyle(document.documentElement).getPropertyValue('--hig-font-mono').trim()")]
-            (check! "HIG tokens present (the frozen artifact had none)"
+            (check! "DADS is the base and the bridge sits on it"
                     (and (seq (str label)) (seq (str mono))) (str label " | " mono))))
 
    (fn [] (p/resolved (check! "no page errors or console errors"
