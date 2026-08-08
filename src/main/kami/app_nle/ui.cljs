@@ -3,6 +3,8 @@
             [kami.app-nle.core :as nle] [kami.app-nle.bench :as bench]
             [html.core :as html]
             [jp-go-dds.core :as dds]
+            [kami.app-nle.dashboard :as dashboard]
+            [kami.app-nle.route :as route]
             [kami.app-nle.theme :as theme]
             [kami.app-nle.asset-sources :as asset-sources]
             [kami.app-nle.cache :as cache]
@@ -13,8 +15,10 @@
  {:track/id "v1" :track/name "V1 • Picture" :track/type :video :track/clips [{:clip/id "wide" :clip/name "Wide shot" :clip/source-id "asset:0" :clip/start-frame 0 :clip/in-frame 20 :clip/out-frame 170 :clip/color (theme/track-color 3)} {:clip/id "close" :clip/name "Close up" :clip/source-id "asset:1" :clip/start-frame 150 :clip/in-frame 10 :clip/out-frame 130 :clip/color (theme/track-color 2)}]}
  {:track/id "a1" :track/name "A1 • Dialogue" :track/type :audio :track/clips [{:clip/id "dialogue" :clip/name "Dialogue.wav" :clip/start-frame 30 :clip/in-frame 0 :clip/out-frame 240 :clip/color (theme/track-color 1)}]}]}))
 (def kotoba-html-contract
-  (html/html [:meta {:name "kotoba:app-shell" :content "kami-nle single-screen dads"}]
-             [:noscript "KAMI NLE requires JavaScript for media decode and rendering."]))
+  ;; The <noscript> that used to live here is in the served document now
+  ;; (scripts/gen-page.cljs): injecting it with JavaScript meant the reader it
+  ;; addresses never saw it.
+  (html/html [:meta {:name "kotoba:app-shell" :content "kami-nle single-page dads"}]))
 (defonce state (r/atom {:project sample :history nle/empty-history :history-replaying? false :trim-drag nil :trim-preview nil :frame 105 :playing? false :selected "wide" :assets {} :audio-buffers {} :cache-restoring? false :cache-restored-count 0 :directory-searching? false :directory-result nil :proxy-preview? true :proxy-generating nil :proxy-error nil :active-source nil :pending-source-frame 0 :decoded? false :effect :none :exporting? false :analyzing-delivery? false :delivery-report nil :caption-text "" :caption-duration-frames 60 :caption-language "en" :caption-position :bottom :caption-align :center :caption-font-scale 1.0 :review-author "editor" :caption-review-drafts {} :project-error nil :recovered? false :primary-slot :a :audio-meter-db -96 :network-sources [] :network-source-status "Not loaded"}))
 (defonce bench-run (r/atom (or (bench/restore) (bench/initial-run))))
 (defn bench-panel [] (let [run @bench-run actor (bench/actor run)]
@@ -1151,13 +1155,13 @@
      [:circle {:cx (* width x1) :cy (* height (- 1 y1)) :r 4}]
      [:circle {:cx (* width x2) :cy (* height (- 1 y2)) :r 4}]]))
 
-(defn app [] (let [{:keys [frame playing? selected decoded? assets effect exporting?]} @state
+(defn editor [] (let [{:keys [frame playing? selected decoded? assets effect exporting?]} @state
                     project (or (:trim-preview @state) (:project @state))
                     total (max 300 (nle/duration-frames project)) fps (:project/fps project)
                     delivery (nle/delivery-audio project)
                     color (nle/color-pipeline project)
                     missing (nle/missing-asset-ids project (keys assets))]
- [:main.nle-main [:header.nle-toolbar [:div [:small.nle-eyebrow "KOTOBA-LANG / VIDEO"] [:h1 "KAMI NLE"]] [:span.nle-spacer] [:div.nle-row (dds/button (if playing? "❚❚ Pause" "▶ Play decoded media") {:type :solid-fill :size "sm" :attrs {:on-click toggle-play! :disabled (not decoded?)}}) [:output.nle-timecode (nle/timecode frame fps)]]]
+ [:main.nle-main [:header.nle-toolbar [:div [:small.nle-eyebrow "KOTOBA-LANG / VIDEO"] [:h1 "KAMI NLE"]] [:span.nle-spacer] (route/nav :editor) [:div.nle-row (dds/button (if playing? "❚❚ Pause" "▶ Play decoded media") {:type :solid-fill :size "sm" :attrs {:on-click toggle-play! :disabled (not decoded?)}}) [:output.nle-timecode (nle/timecode frame fps)]]]
   [:section.nle-meta (dds/button "Load network assets" {:type :outline :size "sm" :attrs {:aria-label "Load network asset sources" :on-click load-network-sources!}})
    [:output {:aria-label "Network asset source status"} (:network-source-status @state)]
    (for [source (:network-sources @state) item (take 4 (:source/items source))]
@@ -1476,8 +1480,20 @@
   [:section.nle-timeline [:input.nle-scrub {:type "range" :min 0 :max total :value frame :aria-label "Playhead" :on-change #(let [f (js/parseInt (.. % -target -value))] (swap! state assoc :frame f) (seek-frame! f))}] (for [track (:project/tracks project)] ^{:key (:track/id track)} [:div.nle-track [:div.nle-track-name (:track/name track)] [:div.nle-lane (for [c (:track/clips track)] ^{:key (:clip/id c)} [clip-view c total])]])]
   [:footer.nle-footer (if-let [e (seq (nle/validate-project project))] (str "Errors: " e) "HTMLVideo decode • graded canvas • capability-negotiated MediaRecorder export")]]))
 (defonce root-node (atom nil))
+(defn app
+  "The whole app: one mount, one of `route/views` rendered into it.
+
+  The editor keeps its own state and its decoded media across a view change,
+  because nothing unmounts the document — that is the point of being a
+  single-page app rather than two pages that happen to share a stylesheet."
+  []
+  (case (:id @route/current)
+    :user-test [dashboard/view]
+    [editor]))
+
 (defn init! []
   (.insertAdjacentHTML (.-head js/document) "beforeend" kotoba-html-contract)
+  (route/install!)
   (when-not @root-node
     (restore-recovery!) (install-history!) (install-autosave!) (install-shortcuts!)
     (reset! root-node (rdom/create-root (.getElementById js/document "app"))))
