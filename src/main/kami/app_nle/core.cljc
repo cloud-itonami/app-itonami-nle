@@ -1,4 +1,4 @@
-(ns kami.app-nle.core (:require [clojure.string :as str]))
+(ns kami.app-nle.core (:require [kotoba.lang.text :as str]))
 (def schema "kami.eizo-project/v1")
 (def history-limit 50)
 (def empty-history {:history/past [] :history/future []})
