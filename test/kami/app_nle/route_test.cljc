@@ -2,7 +2,7 @@
   "Locks the two properties that make a single-page app navigable: every view is
   addressable, and every view is reachable."
   (:require [clojure.test :refer [deftest is testing]]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [kami.app-nle.route :as route]
             [kami.app-nle.theme :as theme]))
 
