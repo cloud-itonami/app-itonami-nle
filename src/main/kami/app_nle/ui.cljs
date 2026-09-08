@@ -1,5 +1,5 @@
 (ns kami.app-nle.ui
-  (:require [reagent.core :as r] [reagent.dom.client :as rdom] [cljs.reader :as reader] [clojure.string :as str]
+  (:require [reagent.core :as r] [reagent.dom.client :as rdom] [cljs.reader :as reader] [kotoba.lang.text :as str]
             [kami.app-nle.core :as nle] [kami.app-nle.bench :as bench]
             [html.core :as html]
             [jp-go-dds.core :as dds]
