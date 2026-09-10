@@ -108,7 +108,7 @@
        [:p {:class "dds-ext-lead"}
         "This address is not part of KAMI NLE. "
         [:a {:href "./"} "Open the app"] "."]))
-    ;; Relative `./`, so one artifact is correct at github.io/kami-app-nle/ and
+    ;; Relative `./`, so one artifact is correct at github.io/app-itonami-nle/ and
     ;; at any other mount point — a document cannot know its own base.
     ;;
     ;; Only the address that actually moved redirects. Rewriting *every* unknown
