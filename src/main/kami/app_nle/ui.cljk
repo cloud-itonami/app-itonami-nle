@@ -16,7 +16,7 @@
  {:track/id "a1" :track/name "A1 • Dialogue" :track/type :audio :track/clips [{:clip/id "dialogue" :clip/name "Dialogue.wav" :clip/start-frame 30 :clip/in-frame 0 :clip/out-frame 240 :clip/color (theme/track-color 1)}]}]}))
 (def kotoba-html-contract
   ;; The <noscript> that used to live here is in the served document now
-  ;; (scripts/gen-page.cljs): injecting it with JavaScript meant the reader it
+  ;; (scripts/gen-page.cljk): injecting it with JavaScript meant the reader it
   ;; addresses never saw it.
   (html/html [:meta {:name "kotoba:app-shell" :content "kami-nle single-page dads"}]))
 (defonce state (r/atom {:project sample :history nle/empty-history :history-replaying? false :trim-drag nil :trim-preview nil :frame 105 :playing? false :selected "wide" :assets {} :audio-buffers {} :cache-restoring? false :cache-restored-count 0 :directory-searching? false :directory-result nil :proxy-preview? true :proxy-generating nil :proxy-error nil :active-source nil :pending-source-frame 0 :decoded? false :effect :none :exporting? false :analyzing-delivery? false :delivery-report nil :caption-text "" :caption-duration-frames 60 :caption-language "en" :caption-position :bottom :caption-align :center :caption-font-scale 1.0 :review-author "editor" :caption-review-drafts {} :project-error nil :recovered? false :primary-slot :a :audio-meter-db -96 :network-sources [] :network-source-status "Not loaded"}))
