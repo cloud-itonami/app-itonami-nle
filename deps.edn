@@ -1,15 +1,22 @@
 {:paths ["src/main" "resources"] :deps {
         ;; kotoba.test (clojure.test-compatible surface), not clojure.test --
         ;; scripts/migrate-clojure-test-to-kotoba-test.cljk. Explicit floor.
-        io.github.kotoba-lang/test {:git/url "https://github.com/kotoba-lang/test.git"
-                                    :git/sha "2ab4885f99fd25552d380d0f6b0b54c5a72eb7ae"}
+        io.github.kotoba-lang/test
+        {:git/url "https://github.com/kotoba-lang/kotoba.git"
+         :git/sha "8c5b1bdafd70de1a36d2a6c3e1b71d415727225d"
+         :deps/root "lib/kotoba.test"}
         ;; kotoba.lang.text, not clojure.string. Pinned as an explicit floor:
         ;; tools.deps takes the NEWEST sha it is shown, so without a floor here
         ;; this repo silently rides whatever a sibling happens to name.
-        io.github.kotoba-lang/text {:git/sha "73bdb13ae7a3d004b44bca08be03a3191157a38f"}
+        io.github.kotoba-lang/text
+        {:git/url "https://github.com/kotoba-lang/kotoba.git"
+         :git/sha "8c5b1bdafd70de1a36d2a6c3e1b71d415727225d"
+         :deps/root "lib/kotoba.text"}
        org.clojure/clojure {:mvn/version "1.12.0"}
-                                          io.github.kotoba-lang/html {:git/url "https://github.com/kotoba-lang/html.git"
-                                                                      :git/sha "44fe37a9120cb7753b974d921c7fc87448dace45"}
+                                          io.github.kotoba-lang/html
+        {:git/url "https://github.com/kotoba-lang/kotoba.git"
+         :git/sha "8c5b1bdafd70de1a36d2a6c3e1b71d415727225d"
+         :deps/root "lib/kotoba.html"}
         ;; jp-go-digital-design-system — デジタル庁デザインシステム(DADS)。
         ;; **このワークスペースの基本 design system**(オーナー判断 2026-08-05;
         ;; 実測 DADS 依存 170 repo / kotoba-ui 12 repo)。app CSS は `--hig-*`
@@ -17,12 +24,14 @@
         ;; primitive の上に再定義するので無改造で追従する。
         ;; fragment routing, shared with the other kami-app-* single-page apps
         io.github.kotoba-lang/route
-        {:git/url "https://github.com/kotoba-lang/route.git"
-         :git/sha "fe32c6dd1a46518fb42c4560792f1abc8c8175f2"}
+        {:git/url "https://github.com/kotoba-lang/kotoba.git"
+         :git/sha "8c5b1bdafd70de1a36d2a6c3e1b71d415727225d"
+         :deps/root "lib/kotoba.route"}
 
         io.github.kotoba-lang/jp-go-digital-design-system
-        {:git/url "https://github.com/kotoba-lang/jp-go-digital-design-system.git"
-         :git/sha "cc8f4849af5def7ea535fd6c0b8a623ccca645e9"}}
+        {:git/url "https://github.com/kotoba-lang/kotoba.git"
+         :git/sha "8c5b1bdafd70de1a36d2a6c3e1b71d415727225d"
+         :deps/root "lib/kotoba.jpGoDigitalDesignSystem"}}
 
  :aliases {:cljs {:extra-deps {org.clojure/clojurescript {:mvn/version "1.11.132"} reagent/reagent {:mvn/version "1.2.0"} thheller/shadow-cljs {:mvn/version "2.28.20"}}}
            :test {:extra-paths ["test"] :extra-deps {io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd6605cb6c0efc275e1df1736f6e90d4d73"}} :main-opts ["-m" "cognitect.test-runner"]}}}
